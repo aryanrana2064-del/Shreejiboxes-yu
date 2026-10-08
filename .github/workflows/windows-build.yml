@@ -1,0 +1,33 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements-dev.txt
+      - name: Tests (includes the Qt UI smoke test, headless)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -q tests
+      - name: Build executable
+        run: pyinstaller packaging/vx7_khata_pro.spec --noconfirm --clean
+      - name: Build installer
+        run: |
+          choco install innosetup -y --no-progress
+          $ver = python -c "import vx7khata; print(vx7khata.__version__)"
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DAppVersion=$ver" packaging\installer.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VX7-KHATA-PRO-windows
+          path: |
+            dist/installer/*.exe
+            dist/VX7 KHATA PRO/
